@@ -1,0 +1,42 @@
+version: '3.3'
+services:
+  chat-room-ws:
+    restart: always
+    env_file: 
+      - ./.env
+    build:
+      context: ./
+    networks:
+      - chat-room-service
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./src:/app/chat-room-ws/src
+      - ./config:/app/chat-room-ws/config
+      - ./scripts:/app/chat-room-ws/scripts
+      - /app/chat-room-ws/.tmp
+      - ./.tmp/node_modules:/app/chat-room-ws/node_modules
+      - ${PWD}/package.json:/app/chat-room-ws/package.json
+      - ${PWD}/package-lock.json:/app/chat-room-ws/package-lock.json
+    links:
+      - mongo
+    environment:
+      - RUNNING_ENV=docker
+      
+  mongo:
+    image: mongo:latest
+    networks:
+      - chat-room-service
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
+    command: [--auth]
+    volumes:
+      - ./data/db:/data/db
+      - ./scripts/mongo/utility/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    ports:
+      - '27017:27017'
+    
+networks:
+  chat-room-service:

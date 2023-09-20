@@ -1,0 +1,17 @@
+{
+    "apps" : [{
+        "name"        : "chat-room",
+        "script"      : "src/app.ts",
+        "watch"       : true,
+        "ignore_watch" : [
+            ".git", 
+            "logs"
+        ],
+        "instance_var": "INSTANCE_ID",
+        "log_date_format" : "YYYY-MM-DD HH:mm Z",
+        "env": {
+            "NODE_ENV": "docker",
+            "TZ": "utc"
+        }
+    }]
+}
