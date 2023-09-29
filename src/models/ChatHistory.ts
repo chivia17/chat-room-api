@@ -1,41 +1,54 @@
-import { Schema, model, Document } from 'mongoose';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../helpers/mysql';
 
 export interface MessageDocument {
-    messageId: Schema.Types.ObjectId,
-    message: string,
-    date: Date,
-    userId: string,
-    nickname: string,
-    type: string
+    messageId: number;
+    message: string;
+    date: Date;
+    userId: number;
+    nickname: string;
+    type: string;
+    roomId: number;
 };
 
-const MessageSchema = new Schema(
-    {
-        data: {type: String, require: true },
-        date: {type: Date, require: true },
-        userId: {type: String, require: true },
-        nickname: {type: String, require: true},
-        type: {type: String, require: true}
+class ChatHistory extends Model {
+    declare messageId: number;
+    declare message: string;
+    declare date: Date;
+    declare userId: number;
+    declare nickname: string;
+    declare type: string;
+    declare roomId: number;
+}
+
+ChatHistory.init({
+    messageId: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
     },
-    {
-        timestamps: true
-    }
-)
-
-export interface ChatHistoryDocument extends Document {
-    roomId: string,
-    messages: Array<MessageDocument>
-};
-
-const ChatHistorySchema = new Schema(
-    {
-        roomId: {type: String, require: true, unique: true, index: true},
-        messages: [MessageSchema]
-
+    message: {
+        type: DataTypes.STRING
     },
-    {
-        timestamps: true
+    date: {
+        type: DataTypes.DATE
+    },
+    userId: {
+        type: DataTypes.INTEGER
+    },
+    nickname: {
+        type: DataTypes.STRING
+    },
+    type: {
+        type: DataTypes.STRING
+    },
+    roomId: {
+        type: DataTypes.INTEGER
     }
-);
+}, {
+    sequelize
+});
 
-export default model<ChatHistoryDocument>('ChatHistory', ChatHistorySchema, 'ChatHistory');
+ChatHistory.sync();
+
+export default ChatHistory;

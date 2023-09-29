@@ -1,32 +1,64 @@
-import { Schema, model, Document } from 'mongoose';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../helpers/mysql';
 
-export interface RoomDocument extends Document {
-    roomId: string,
-    name: string,
-    description: string,
-    totalUsers: number,
-    userInRoom: number,
-    private: boolean,
-    active: boolean,
-    owner: string,
-    users: Array<string>
+export interface RoomDocument {
+    id: number;
+    roomId: string;
+    name: string;
+    description: string;
+    totalUsers: number;
+    userInRoom: number;
+    private: boolean;
+    active: boolean;
+    owner: number;
 };
 
-const RoomSchema = new Schema(
-    {
-        roomId: {type: String, require: true, unique: true, index: true},
-        name: {type: String, require: true},
-        description: {type: String, require: true},
-        totalUsers: {type: Number, default: 12, require: true},
-        userInRoom: {type: Number, default: 0, require: true},
-        private: {type: Boolean, require: true},
-        active: {type: Boolean, require: false},
-        owner: {type: String, require: true},
-        users: {type: Array}
-    },
-    {
-        timestamps: true
-    }
-);
+class Room extends Model {
+    declare id: number;
+    declare roomId: string;
+    declare name: string;
+    declare description: string;
+    declare totalUsers: number;
+    declare userInRoom: number;
+    declare private: boolean;
+    declare active: boolean;
+    declare owner: number;
+};
 
-export default model<RoomDocument>('Room', RoomSchema, 'Room');
+Room.init({
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    roomId: {
+        type: DataTypes.STRING
+    },
+    name: {
+        type: DataTypes.STRING
+    },
+    description: {
+        type: DataTypes.STRING
+    },
+    totalUsers: {
+        type: DataTypes.INTEGER
+    },
+    userInRoom: {
+        type: DataTypes.INTEGER
+    },
+    private: {
+        type: DataTypes.BOOLEAN
+    },
+    active: {
+        type: DataTypes.BOOLEAN
+    },
+    owner: {
+        type: DataTypes.INTEGER
+    }
+}, {
+    sequelize
+});
+
+Room.sync();
+
+export default Room;

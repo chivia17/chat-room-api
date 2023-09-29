@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.use(cors({
   origin: process.env.APP_ORIGIN_URL,
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'jwt-token'],
   methods: ['GET', 'POST', 'OPTIONS'],
 }));
 

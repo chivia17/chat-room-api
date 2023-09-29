@@ -1,16 +1,18 @@
 import Room, { RoomDocument } from '../models/Room';
-import User from '../models/User';
+import UserRoom from '../models/UserRoom';
+import CustomError from './customError';
 import { v4 as uuidv4 } from 'uuid';
+import { Sequelize, Op } from 'sequelize';
 
 export default class RoomController {
     /**
      * Add new room
      * @param {string} name - Room name
      * @param {boolean} visibility - Room visibility
-     * @param {string} userId - Room owner
+     * @param {number} userId - Room owner
      * @returns {string} - Room ID
      */
-    public async createRoom(name: string, description: string, visibility: boolean, userId: string): Promise<string> {
+    public async createRoom(name: string, description: string, visibility: boolean, userId: number): Promise<number> {
         try {
             const roomData = {
                 roomId: uuidv4(),
@@ -21,113 +23,117 @@ export default class RoomController {
                 owner: userId
             };
             
-            const newRoom = new Room(roomData);
-            
-            await newRoom.save();
+            const room = await Room.create(roomData);
     
-            return newRoom.roomId;   
+            return room.id;   
         } catch (error: any) {
             console.log(error);
-            throw Error(`Error creating room: ${error.messsage}`);
+            throw new CustomError(`Error creating room: ${error.messsage}`, 500);
         }
     }
 
     /**
      * Join room
-     * @param {string} roomId = Room ID
-     * @param {string} userId = User ID
+     * @param {number} roomId = Room ID
+     * @param {number} userId = User ID
      */
-    public async joinRoom(roomId: string, userId: string): Promise<void> {
+    public async joinRoom(roomId: number, userId: number): Promise<void> {
         try {
-            await Room.updateOne(
-                { 'roomId': roomId },
-                { 
-                    '$inc': { 'userInRoom': 1 },
-                    '$push': { 'users': userId } 
-                }
-            );
+            console.log('join room', roomId, userId);
+            await UserRoom.create({
+                'userId': userId,
+                'roomId': roomId
+            });
 
-            await User.updateOne(
-                { 'userId': userId },
+            await Room.increment('userInRoom',
                 {
-                    '$push': { 'rooms': roomId } 
+                    'where': {
+                        'id': roomId
+                    }
                 }
             );
         } catch (error: any) {
-            throw Error(`Error joining room: ${error.messsage}`);
+            console.error(error);
+            throw new CustomError(`Error joining room: ${error.messsage}`, 500);
         }
     }
 
     /**
      * Leave room
-     * @param {string} roomId - Room ID 
-     * @param {string} userId - User IDs
+     * @param {number} roomId - Room ID 
+     * @param {number} userId - User IDs
      */
-    public async leaveRoom(roomId: string, userId: string): Promise<void> {
+    public async leaveRoom(roomId: number, userId: number): Promise<void> {
         try {
-            await Room.updateOne(
-                { 'roomId': roomId },
-                { 
-                    '$inc': { 'userInRoom': -1 },
-                    '$pull': { 'users': userId } 
+            await UserRoom.destroy(
+                {
+                    'where': {
+                        'userId': userId,
+                        'roomId': roomId
+                    }
                 }
             );
 
-            await User.updateOne(
-                { 'userId': userId },
+            await Room.decrement('userInRoom',
                 {
-                    '$pull': { 'rooms': roomId } 
+                    'where': {
+                        'id': roomId
+                    }
                 }
             );
         } catch (error: any) {
-            throw Error(`Error leaving room: ${error.messsage}`);
+            throw new CustomError(`Error leaving room: ${error.messsage}`, 500);
         }
     }
 
     /**
      * Check if room is full
-     * @param {string} roomId - Room ID 
+     * @param {number} roomId - Room ID 
      * @returns {boolean} - True if room is full or false otherwise
      */
-    public async roomIsFull(roomId: string): Promise<boolean> {
+    public async roomIsFull(roomId: number): Promise<boolean> {
         try {
-            const room = await Room.findOne({'roomId': roomId}).exec();
+            const room = await Room.findOne({
+                'where': {
+                    'id': roomId
+                }
+            });
+
+            if(!room) {
+                throw new CustomError('Room not found', 404);
+            }
             
-            return room?.totalUsers === room?.userInRoom;   
+            return room.totalUsers === room.userInRoom;   
         } catch (error: any) {
-            throw Error(error.messsage);
+            throw new CustomError(error.messsage, 500);
         }
     }
 
     /**
      * Get rooms that user is enroll
-     * @param {string} userId - User ID 
+     * @param {number} userId - User ID 
      * @returns {Array<RoomDocument>} - Room list
      */
-    public async getRoomsEnrolled(userId: string): Promise<Array<RoomDocument>> {
+    public async getRoomsEnrolled(userId: number): Promise<Array<RoomDocument>> {
         try {
-            let transactiontAggregate = [];
-
-            transactiontAggregate.push({
-                '$match': {
-                    'userId': userId,
-                }
-            }, {
-                '$lookup': {
-                    'from': 'Room',
-                    'localField': 'rooms',
-                    'foreignField': 'roomId',
-                    'as': 'rooms'
-                }
-            }, {
-                '$project': {
-                    'rooms': 1
+            const userRooms = await UserRoom.findAll({
+                'attributes': ['roomId'],
+                'where': {
+                    'userId': userId
                 }
             });
 
-            const user = await User.aggregate(transactiontAggregate);
+            const roomsId = userRooms.map(userRoom => userRoom.roomId);
 
-            return user.length > 0? user[0].rooms : [];
+            const rooms = await Room.findAll({
+                'where': {
+                    'id': {
+                        [Op.in]: roomsId
+                    }
+                }
+            });
+            
+            return rooms;
         } catch (error: any) {
             throw Error(error.message);
         }
@@ -135,21 +141,27 @@ export default class RoomController {
 
     /**
      * Get all public rooms
+     * @param {number} userId = User ID 
      * @returns {Array<RoomDocument>} - Room list
      */
-    public async getAvailableRooms(userId: string): Promise<Array<RoomDocument>> {
+    public async getAvailableRooms(userId: number): Promise<Array<RoomDocument>> {
         try {
-            const user = await User.findOne({'userId': userId}).exec();
+            const userRooms = await UserRoom.findAll({
+                'attributes': ['roomId'],
+                'where': {
+                    'userId': userId
+                }
+            });
 
-            const rooms = await Room.find(
-                {
-                    'active': true,
-                    'private': false,
-                    'roomId': {
-                        '$nin': user?.rooms,
+            const roomsId = userRooms.map(userRoom => userRoom.roomId);
+
+            const rooms = await Room.findAll({
+                'where': {
+                    'id': {
+                        [Op.notIn]: roomsId
                     }
                 }
-            ).exec();
+            });
             
             return rooms;   
         } catch (error: any) {
@@ -157,17 +169,28 @@ export default class RoomController {
         }
     }
 
-    public async getRoomName(roomId: string): Promise<string> {
+    /**
+     * Get room name
+     * @param {number} roomId - Room ID 
+     * @returns {string} - Room name
+     */
+    public async getRoomName(roomId: number): Promise<string> {
         try {
-            const room = await Room.findOne(
-                {
-                    'roomId': roomId
+            const room = await Room.findOne({
+                'attributes': ['name'],
+                'where': {
+                    'id': roomId,
                 }
-            ).exec();
+            });
 
-            return room?.name?? '';
+            if(!room) {
+                throw new CustomError('Room not found', 404);
+            }
+
+            return room.name;
         } catch (error:any) {
-            throw Error(error.messsage);
+            console.error(error);
+            throw new CustomError(`${error.messsage}`, 500);
         }
     }
 }

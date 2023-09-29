@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import commonRoutes from './routes/common';
 import roomRoutes from './routes/room';
+import authRoutes from './routes/auth'
 import UserController from './controllers/user';
 import RoomController from './controllers/room';
 import ChatController from './controllers/chat';
@@ -12,6 +13,7 @@ const app: Application = express();
 app.use(express.json());
 app.use('/', commonRoutes);
 app.use('/room', roomRoutes);
+app.use('/user', authRoutes);
 
 const server = createServer(app);
 const io = new Server(server, {
@@ -37,10 +39,10 @@ io.of('/chat').on('connection', (socket) => {
 
     /**
      * Join room
-     */
-    socket.on('join', async ({room, nickname}, ack) => {
+     */ 
+    socket.on('join', async ({room, nickname, userId}, ack) => {
         try {
-            await new RoomController().joinRoom(room, socket.id);
+            await new RoomController().joinRoom(room, userId);
 
             socket.join(room);
 
@@ -62,15 +64,31 @@ io.of('/chat').on('connection', (socket) => {
             ack({ status: 'error', message: error.message });
         }
     });
+
+    /**
+     * Re join rooms
+     */
+    socket.on('re-join', async({userId}) => {
+        try {
+            const myRooms = await new RoomController().getRoomsEnrolled(userId);
+
+            myRooms.forEach((room) => {
+                socket.join(room.id.toString());
+                console.log(`Re join room: ${room.id} :${userId}`)
+            })
+        } catch (error: any) {
+            socket.in(socket.id).emit('error', {message: error.message});
+        }
+    })
     
     /**
      * Leave room
      */
-    socket.on('leave', async ({room, nickname}, ack) => {
+    socket.on('leave', async ({room, nickname, userId}, ack) => {
         try {
             socket.leave(room);
 
-            await new RoomController().leaveRoom(room, socket.id);
+            await new RoomController().leaveRoom(room, userId);
 
             io.in(room).emit('notification', 
                 {
@@ -92,17 +110,17 @@ io.of('/chat').on('connection', (socket) => {
     /**
      * Receive and send message
      */
-    socket.on('message', async ({room, message, nickname}) => {
+    socket.on('message', async ({room, message, nickname, userId}) => {
         try {
             console.log(`Message to ${room}: ${message}`);
 
-            await new ChatController().addMessage(room, message, socket.id, 'text', nickname);
+            await new ChatController().addMessage(room, message, userId, 'text', nickname);
             
             socket.in(room).emit('message', 
                 {
                     'room': room,
                     'message': message,
-                    'userId': socket.id,
+                    'userId': userId,
                     'nickname': nickname
                 }
             );
@@ -129,9 +147,7 @@ io.of('/chat').on('connection', (socket) => {
      */
     socket.on('disconnect', async () => {
         try {
-            console.log(`User disconnected: ${socket.id}`);
-            
-            await new UserController().removeUser(socket.id);   
+            console.log(`User disconnected: ${socket.id}`); 
         } catch (error) {
             console.error(error);
         }

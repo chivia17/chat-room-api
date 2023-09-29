@@ -19,24 +19,23 @@ services:
       - ${PWD}/package.json:/app/chat-room-ws/package.json
       - ${PWD}/package-lock.json:/app/chat-room-ws/package-lock.json
     links:
-      - mongo
+      - mysql
     environment:
       - RUNNING_ENV=docker
-      
-  mongo:
-    image: mongo:latest
+    
+  mysql:
+    image: mysql:latest
     networks:
       - chat-room-service
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB_NAME}
-    command: [--auth]
-    volumes:
-      - ./data/db:/data/db
-      - ./scripts/mongo/utility/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+      MYSQL_DATABASE: ${MYSQL_DB_NAME}
+      MYSQL_USER: ${MYSQL_INIT_USER}
+      MYSQL_PASSWORD: ${MYSQL_INIT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_INIT_ROOT_PASSWORD}
     ports:
-      - '27017:27017'
-    
+      - '3306:3306'
+    volumes:
+      - ./data/db:/var/lib/mysql
+
 networks:
   chat-room-service:

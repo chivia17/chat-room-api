@@ -1,6 +1,7 @@
 import express, { Request, Response} from 'express';
 import RoomController from '../controllers/room';
 import ChatController from '../controllers/chat';
+import authMiddleware from '../middleware/jwt';
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ const router = express.Router();
  * @param {Request} req - The express request object.
  * @param {Response} res - The express response object. 
  */
-router.post('/new', async (req: Request, res: Response) => {
+router.post('/new', authMiddleware, async (req: Request, res: Response) => {
     try {
         const roomController = new RoomController();
         
@@ -36,12 +37,12 @@ router.post('/new', async (req: Request, res: Response) => {
  * @param {Request} req - The express request object.
  * @param {Response} res - The express response object. 
  */
-router.get('/availables', async (req: Request, res: Response) => {
+router.get('/availables', authMiddleware, async (req: Request, res: Response) => {
     try {
         const roomController = new RoomController();
 
         const rooms = await roomController
-            .getAvailableRooms(req.query.userId as string);
+            .getAvailableRooms(Number(req.query.userId));
 
         if(rooms.length > 0) {
             return res.status(200).send({
@@ -65,12 +66,12 @@ router.get('/availables', async (req: Request, res: Response) => {
  * @param {Request} req - The express request object.
  * @param {Response} res - The express response object. 
  */
-router.get('/enrolled', async (req: Request, res: Response) => {
+router.get('/enrolled', authMiddleware, async (req: Request, res: Response) => {
     try {
         const roomController = new RoomController();
 
         const rooms = await roomController.
-            getRoomsEnrolled(req.query.userId as string);
+            getRoomsEnrolled(Number(req.query.userId));
 
         if(rooms.length > 0) {
             return res.status(200).send({
@@ -94,12 +95,12 @@ router.get('/enrolled', async (req: Request, res: Response) => {
  * @param {Request} req - The express request object.
  * @param {Response} res - The express response object. 
  */
-router.get('/history', async (req: Request, res: Response) => {
+router.get('/history', authMiddleware, async (req: Request, res: Response) => {
     try {        
         const chatController = new ChatController();
 
         const messages = await chatController.
-            getMessageHistory(req.query.roomId as string);
+            getMessageHistory(Number(req.query.roomId));
         
         if(messages.length > 0) {
             return res.status(200).send({

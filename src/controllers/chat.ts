@@ -1,56 +1,50 @@
-import ChatHistory, { MessageDocument } from "../models/ChatHistory";
+import ChatHistory, { MessageDocument } from '../models/ChatHistory';
+import CustomError from './customError';
 
 export default class ChatController {
 
     /**
      * Add message to chat history
-     * @param {string} roomId - Room ID
+     * @param {number} roomId - Room ID
      * @param {string} message - Message data
-     * @param {string} userId - User ID
+     * @param {number} userId - User ID
      * @param {string} type - Message type
      */
-    public async addMessage(roomId: string, message: string, userId: string, type: string, nickname: string): Promise<void> {
+    public async addMessage(roomId: number, message: string, userId: number, type: string, nickname: string): Promise<void> {
         try {
             const messageData = {
-                data: message,
+                message: message,
                 date: new Date(),
                 userId: userId,
                 type: type,
-                nickname: nickname
+                nickname: nickname,
+                roomId: roomId
             };
             
-            await ChatHistory.findOneAndUpdate(
-                { 'roomId': roomId },
-                {
-                    '$push': {
-                        'messages': messageData
-                    }
-                },
-                {
-                    'upsert': true
-                }
-            );    
+            await ChatHistory.create(messageData);
         } catch (error: any) {
             console.log(error);
-            throw Error(`Error saving message: ${error.messsage}`);
+            throw new CustomError(`Error saving message: ${error.messsage}`, 500);
         }
     }
 
     /**
      * Get message history from specific room
-     * @param {string} roomId - Room ID
+     * @param {number} roomId - Room ID
      * @return {Array<MessageDocument>} - Message history
      */
-    public async getMessageHistory(roomId: string): Promise<Array<MessageDocument>> {
+    public async getMessageHistory(roomId: number): Promise<Array<MessageDocument>> {
         try {
-            const chatHistory = await ChatHistory.findOne({
-                'roomId': roomId
+            const chatHistory = await ChatHistory.findAll({
+                'where': {
+                    'roomId': roomId
+                }
             });
             
-            return chatHistory?.messages?? [];
+            return chatHistory;
         } catch (error: any) {
             console.log(error);
-            throw Error(`Error getting message history: ${error.messsage}`);
+            throw new CustomError(`Error getting message history: ${error.messsage}`, 500);
         }
     }
 }

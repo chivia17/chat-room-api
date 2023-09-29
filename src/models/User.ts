@@ -1,22 +1,41 @@
-import { Schema, model, Document } from 'mongoose';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../helpers/mysql';
 
-export interface UserDocument extends Document {
-    userId: string,
-    nickname: string,
-    active: boolean,
-    rooms: Array<string>
+
+export interface UserDocument {
+    id: string;
+    nickname: string;
+    active: boolean;
+    password: string;
 };
 
-const UserSchema = new Schema(
-    {
-        userId: {type: String, require: true, unique: true, index: true},
-        nickname: {type: String, require: true},
-        active: {type: String, require: false},
-        rooms: {type: Array, require: false}
-    },
-    {
-        timestamps: true
-    }
-);
+class User extends Model {
+    declare id: number;
+    declare nickname: string;
+    declare active: boolean;
+    declare password: string;
+}
 
-export default model<UserDocument>('User', UserSchema, 'User');
+User.init({
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    nickname: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    active: {
+        type: DataTypes.BOOLEAN
+    },
+    password: {
+        type: DataTypes.STRING
+    }
+}, {
+    sequelize
+});
+
+User.sync();
+
+export default User;
